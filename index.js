@@ -21,32 +21,25 @@ function rollDice(dice) {
 
 // 🎯 Start battle
 app.post('/battle/start', (req, res) => {
-  const { character, monster, telegramId } = req.body;
+  const { character, monster, telegramId, action } = req.body;
+  // existing logic...
 
-  if (!character || !monster || !telegramId) {
-    return res.status(400).json({ error: 'Missing character, monster, or telegramId' });
+  // Apply first action if provided
+  if (action) {
+    req.body = { telegramId, action };
+    return app._router.handle(req, res, () => {});
   }
 
-  const battle = {
-    character: { ...character, currentHP: character.hp },
-    monster: {
-      ...monster,
-      hp: monster.hd ? monster.hd * 4 : 20,
-      currentHP: monster.hd ? monster.hd * 4 : 20,
-    },
-    turn: 1,
-    status: 'ongoing'
-  };
-
-  battles.set(telegramId, battle);
-
+  // else default response
   return res.json({
-    description: monster.notes || `👹 Un ${monster.name} aparece ante ti.`,
-    monsterName: monster.name,
+    message: `👹 Te enfrentas a un ${monster.name}! ¿Qué haces?`,
     turn: 1,
-    battleStatus: 'ongoing'
+    battleStatus: 'ongoing',
+    options: ['attack', 'defend', 'hide'],
+    monsterName: monster.name
   });
 });
+
 
 // 🌀 Battle turn
 app.post('/battle/action', (req, res) => {
