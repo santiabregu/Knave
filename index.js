@@ -19,7 +19,6 @@ function rollDice(dice) {
   };
 }
 
-// ♻️ Reusable function to run a battle turn
 function runBattleTurn(telegramId, action) {
   const battle = battles.get(telegramId);
   if (!battle || battle.status !== 'ongoing') {
@@ -52,7 +51,7 @@ function runBattleTurn(telegramId, action) {
     log.push('🤔 Acción no reconocida.');
   }
 
-  // Monster turn
+
   if (monster.currentHP > 0 && !battle.skipMonsterTurn) {
     const roll = Math.floor(Math.random() * 20) + 1 + (monster.attackBonus || 0);
     if (roll >= 12) {
@@ -68,6 +67,7 @@ function runBattleTurn(telegramId, action) {
   }
 
   battle.turn++;
+  log.unshift(`🎲 Turno ${battle.turn}`);
 
   if (monster.currentHP <= 0) {
     battles.delete(telegramId);
@@ -89,6 +89,9 @@ function runBattleTurn(telegramId, action) {
     };
   }
 
+  log.push(`❤️ ${character.name || 'Jugador'}: ${character.currentHP} HP`);
+  log.push(`🧟 ${monster.name}: ${monster.currentHP} HP`);
+
   return {
     result: 'ongoing',
     log,
@@ -99,7 +102,7 @@ function runBattleTurn(telegramId, action) {
   };
 }
 
-// 🎯 Start battle
+
 app.post('/battle/start', (req, res) => {
   const { character, monster, telegramId, action } = req.body;
 
@@ -120,7 +123,6 @@ app.post('/battle/start', (req, res) => {
 
   battles.set(telegramId, battle);
 
-  // 🎬 Optionally apply the first action
   if (action) {
     const result = runBattleTurn(telegramId, action);
     return res.json(result);
@@ -135,7 +137,6 @@ app.post('/battle/start', (req, res) => {
   });
 });
 
-// 🔁 Action route
 app.post('/battle/action', (req, res) => {
   const { telegramId, action } = req.body;
   if (!telegramId || !action) {
