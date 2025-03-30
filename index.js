@@ -19,45 +19,16 @@ function rollDice(dice) {
   };
 }
 
-// 🎯 Start battle
-app.post('/battle/start', (req, res) => {
-  const { character, monster, telegramId, action } = req.body;
-  // existing logic...
-
-  // Apply first action if provided
-  if (action) {
-    req.body = { telegramId, action };
-    return app._router.handle(req, res, () => {});
-  }
-
-  // else default response
-  return res.json({
-    message: `👹 Te enfrentas a un ${monster.name}! ¿Qué haces?`,
-    turn: 1,
-    battleStatus: 'ongoing',
-    options: ['attack', 'defend', 'hide'],
-    monsterName: monster.name
-  });
-});
-
-
-// 🌀 Battle turn
-app.post('/battle/action', (req, res) => {
-  const { telegramId, action } = req.body;
-
-  if (!telegramId || !action) {
-    return res.status(400).json({ error: 'Missing telegramId or action' });
-  }
-
+// ♻️ Reusable function to run a battle turn
+function runBattleTurn(telegramId, action) {
   const battle = battles.get(telegramId);
   if (!battle || battle.status !== 'ongoing') {
-    return res.json({ message: '❌ No hay combate activo. Usa /battle/start.' });
+    return { message: '❌ No hay combate activo.', battleStatus: 'error' };
   }
 
   const { character, monster } = battle;
   const log = [];
 
-  // 🎮 Player action
   if (action === 'attack') {
     const roll = Math.floor(Math.random() * 20) + 1 + (character.fuerza || 0);
     if (roll >= monster.ac) {
@@ -81,7 +52,7 @@ app.post('/battle/action', (req, res) => {
     log.push('🤔 Acción no reconocida.');
   }
 
-  // 👹 Monster turn
+  // Monster turn
   if (monster.currentHP > 0 && !battle.skipMonsterTurn) {
     const roll = Math.floor(Math.random() * 20) + 1 + (monster.attackBonus || 0);
     if (roll >= 12) {
@@ -98,36 +69,81 @@ app.post('/battle/action', (req, res) => {
 
   battle.turn++;
 
-  // ☠️ Check win/lose
   if (monster.currentHP <= 0) {
     battles.delete(telegramId);
-    return res.json({
+    return {
       result: 'victory',
       log,
       turn: battle.turn,
       finalHP: character.currentHP
-    });
+    };
   }
 
   if (character.currentHP <= 0) {
     battles.delete(telegramId);
-    return res.json({
+    return {
       result: 'defeat',
       log,
       turn: battle.turn,
       finalHP: 0
-    });
+    };
   }
 
-  // 🔁 Ongoing
-  return res.json({
+  return {
     result: 'ongoing',
     log,
     turn: battle.turn,
     characterHP: character.currentHP,
     monsterHP: monster.currentHP,
     nextOptions: ['attack', 'defend', 'hide']
+  };
+}
+
+// 🎯 Start battle
+app.post('/battle/start', (req, res) => {
+  const { character, monster, telegramId, action } = req.body;
+
+  if (!character || !monster || !telegramId) {
+    return res.status(400).json({ error: 'Missing character, monster, or telegramId' });
+  }
+
+  const battle = {
+    character: { ...character, currentHP: character.hp },
+    monster: {
+      ...monster,
+      hp: monster.hd ? monster.hd * 4 : 20,
+      currentHP: monster.hd ? monster.hd * 4 : 20,
+    },
+    turn: 1,
+    status: 'ongoing'
+  };
+
+  battles.set(telegramId, battle);
+
+  // 🎬 Optionally apply the first action
+  if (action) {
+    const result = runBattleTurn(telegramId, action);
+    return res.json(result);
+  }
+
+  return res.json({
+    message: `👹 Te enfrentas a un ${monster.name}! ¿Qué haces?`,
+    turn: 1,
+    battleStatus: 'ongoing',
+    options: ['attack', 'defend', 'hide'],
+    monsterName: monster.name
   });
+});
+
+// 🔁 Action route
+app.post('/battle/action', (req, res) => {
+  const { telegramId, action } = req.body;
+  if (!telegramId || !action) {
+    return res.status(400).json({ error: 'Missing telegramId or action' });
+  }
+
+  const result = runBattleTurn(telegramId, action);
+  return res.json(result);
 });
 
 const PORT = process.env.PORT || 3000;
