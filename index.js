@@ -70,7 +70,7 @@ function runBattleTurn(telegramId, action) {
   log.unshift(`🎲 Turno ${battle.turn}`);
 
   if (monster.currentHP <= 0) {
-    battles.delete(telegramId);
+    battle.status = 'victory';
     return {
       result: 'victory',
       log,
@@ -78,16 +78,29 @@ function runBattleTurn(telegramId, action) {
       finalHP: character.currentHP
     };
   }
+  
 
-  if (character.currentHP <= 0) {
-    battles.delete(telegramId);
-    return {
-      result: 'defeat',
-      log,
-      turn: battle.turn,
-      finalHP: 0
-    };
-  }
+    if (character.currentHP <= 0) {
+      battle.status = 'defeat';
+      return {
+        result: 'defeat',
+        log,
+        turn: battle.turn,
+        finalHP: 0
+      };
+    }
+    
+    if (character.currentHP <= 0) {
+      battle.status = 'defeat';
+      return {
+        result: 'defeat',
+        log,
+        turn: battle.turn,
+        finalHP: 0
+      };
+    }
+
+
 
   log.push(`❤️ ${character.name || 'Jugador'}: ${character.currentHP} HP`);
   log.push(`🧟 ${monster.name}: ${monster.currentHP} HP`);
